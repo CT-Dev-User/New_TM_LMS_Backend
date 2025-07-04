@@ -1,3 +1,5 @@
+
+
 // import { v2 as cloudinary } from 'cloudinary';
 // import cors from 'cors';
 // import dotenv from 'dotenv';
@@ -23,7 +25,6 @@
 
 // // Initialize Express app
 // const app = express();
-// const PORT = process.env.PORT || 3000;
 
 // // Middlewares
 // app.use(cors({
@@ -31,8 +32,9 @@
 //   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 //   allowedHeaders: ['Content-Type', 'Authorization', 'token'],
 // }));
-// app.use(express.json({ limit: '10mb' })); // For JSON payloads
-// app.use(express.urlencoded({ limit: '10mb', extended: true })); // For form data
+
+// app.use(express.json({ limit: '10mb' }));
+// app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // // Health check endpoint
 // app.get('/', (req, res) => {
@@ -46,13 +48,11 @@
 // import instructorRoutes from './routes/instructor.js';
 // import userRoutes from './routes/user.js';
 
-
 // app.use('/api', userRoutes);
 // app.use('/api', courseRoutes);
 // app.use('/api', adminRoutes);
-// app.use("/api",instructorRoutes)
-// app.use("/api",questionRoutes)
-
+// app.use('/api', instructorRoutes);
+// app.use('/api', questionRoutes);
 
 // // Error handling middleware
 // app.use((err, req, res, next) => {
@@ -60,21 +60,47 @@
 //   res.status(500).json({ message: 'Internal Server Error', error: err.message });
 // });
 
-// // Start server and connect to DB
-// const startServer = async () => {
+// // Database connection with timeout
+// let isConnected = false;
+
+// const connectToDatabase = async () => {
+//   if (isConnected) {
+//     return;
+//   }
+  
 //   try {
 //     await conn();
+//     isConnected = true;
 //     console.log('Database connected');
-//     app.listen(PORT, () => {
-//       console.log(`Server running @ http://localhost:${PORT}`);
-//     });
 //   } catch (error) {
-//     console.error('Failed to start server:', error);
-//     process.exit(1);
+//     console.error('Database connection failed:', error);
+//     throw error;
 //   }
 // };
 
-// startServer();
+// // Vercel serverless handler
+// export default async function handler(req, res) {
+//   try {
+//     // Connect to database with timeout
+//     const dbTimeout = setTimeout(() => {
+//       throw new Error('Database connection timeout');
+//     }, 8000);
+    
+//     await connectToDatabase();
+//     clearTimeout(dbTimeout);
+    
+//     // Handle the request
+//     return app(req, res);
+//   } catch (error) {
+//     console.error('Handler error:', error);
+//     return res.status(500).json({ 
+//       message: 'Internal Server Error', 
+//       error: error.message 
+//     });
+//   }
+// }
+
+
 
 import { v2 as cloudinary } from 'cloudinary';
 import cors from 'cors';
@@ -102,11 +128,23 @@ export const instance = new Razorpay({
 // Initialize Express app
 const app = express();
 
-// Middlewares
+// === ✅ FIXED: Secure CORS Configuration ===
+const allowedOrigins = [
+  'https://main.d38etjdofoghg2.amplifyapp.com', // Your Amplify frontend domain
+  'http://localhost:3000', // Optional for local development
+];
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? 'https://your-production-url.com' : '*',
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'token'],
+  credentials: true,
 }));
 
 app.use(express.json({ limit: '10mb' }));
@@ -117,7 +155,7 @@ app.get('/', (req, res) => {
   res.send('Server is working');
 });
 
-// Routes
+// === Routes ===
 import adminRoutes from './routes/admin.js';
 import courseRoutes from './routes/course.js';
 import questionRoutes from './routes/CourseQ.js';
@@ -130,48 +168,45 @@ app.use('/api', adminRoutes);
 app.use('/api', instructorRoutes);
 app.use('/api', questionRoutes);
 
-// Error handling middleware
+// === Error Handler ===
 app.use((err, req, res, next) => {
   console.error('Server error:', err.stack);
   res.status(500).json({ message: 'Internal Server Error', error: err.message });
 });
 
-// Database connection with timeout
+// === DB Connection ===
 let isConnected = false;
 
 const connectToDatabase = async () => {
-  if (isConnected) {
-    return;
-  }
-  
+  if (isConnected) return;
+
   try {
     await conn();
     isConnected = true;
-    console.log('Database connected');
+    console.log('✅ Database connected');
   } catch (error) {
-    console.error('Database connection failed:', error);
+    console.error('❌ Database connection failed:', error);
     throw error;
   }
 };
 
-// Vercel serverless handler
+// === ✅ Exported handler for Vercel serverless functions ===
 export default async function handler(req, res) {
   try {
-    // Connect to database with timeout
     const dbTimeout = setTimeout(() => {
       throw new Error('Database connection timeout');
     }, 8000);
-    
+
     await connectToDatabase();
     clearTimeout(dbTimeout);
-    
-    // Handle the request
-    return app(req, res);
+
+    // Pass the request to Express
+    app(req, res);
   } catch (error) {
     console.error('Handler error:', error);
-    return res.status(500).json({ 
-      message: 'Internal Server Error', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Internal Server Error',
+      error: error.message,
     });
   }
 }
