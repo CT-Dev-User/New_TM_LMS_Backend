@@ -118,11 +118,11 @@ app.get('/', (req, res) => {
 });
 
 // Routes
-import adminRoutes from '../routes/admin.js';
-import courseRoutes from '../routes/course.js';
-import questionRoutes from '../routes/CourseQ.js';
-import instructorRoutes from '../routes/instructor.js';
-import userRoutes from '../routes/user.js';
+import adminRoutes from './routes/admin.js';
+import courseRoutes from './routes/course.js';
+import questionRoutes from './routes/CourseQ.js';
+import instructorRoutes from './routes/instructor.js';
+import userRoutes from './routes/user.js';
 
 app.use('/api', userRoutes);
 app.use('/api', courseRoutes);
