@@ -99,7 +99,6 @@
 //     });
 //   }
 // }
-
 import { v2 as cloudinary } from 'cloudinary';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -107,29 +106,25 @@ import express from 'express';
 import Razorpay from 'razorpay';
 import { conn } from './database/db.js';
 
-// Load environment variables
 dotenv.config();
 
-// Configure Cloudinary
+// === Express App Setup ===
+const app = express();
+
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Razorpay instance
 export const instance = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-// Initialize Express app
-const app = express();
-
-// === ✅ CORS Configuration ===
 const allowedOrigins = [
-  'https://main.d38etjdofoghg2.amplifyapp.com', // Your Amplify frontend
-  'http://localhost:3000' // Optional: local dev
+  'https://main.d38etjdofoghg2.amplifyapp.com',
+  'http://localhost:3000'
 ];
 
 app.use(cors({
@@ -140,12 +135,10 @@ app.use(cors({
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'token'],
   credentials: true,
 }));
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // === Routes ===
@@ -161,35 +154,21 @@ app.use('/api', adminRoutes);
 app.use('/api', instructorRoutes);
 app.use('/api', questionRoutes);
 
-// === Health check ===
 app.get('/', (req, res) => {
-  res.send('✅ Server is working');
+  res.send('Server running');
 });
 
-// === Error Handler ===
 app.use((err, req, res, next) => {
-  console.error('❌ Server error:', err.stack);
-  res.status(500).json({
-    message: 'Internal Server Error',
-    error: err.message
-  });
+  res.status(500).json({ message: 'Internal Server Error', error: err.message });
 });
 
-// === DB + Server Start ===
-const PORT = process.env.PORT || 3000;
+// === Export app as handler for Vercel ===
+let isConnected = false;
 
-const startServer = async () => {
-  try {
+export default async function handler(req, res) {
+  if (!isConnected) {
     await conn();
-    console.log('✅ Database connected');
-
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running at http://localhost:${PORT}`);
-    });
-  } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    process.exit(1);
+    isConnected = true;
   }
-};
-
-startServer();
+  return app(req, res);
+}
