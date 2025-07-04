@@ -100,8 +100,6 @@
 //   }
 // }
 
-
-
 import { v2 as cloudinary } from 'cloudinary';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -128,10 +126,10 @@ export const instance = new Razorpay({
 // Initialize Express app
 const app = express();
 
-// === ✅ FIXED: Secure CORS Configuration ===
+// === ✅ CORS Configuration ===
 const allowedOrigins = [
-  'https://main.d38etjdofoghg2.amplifyapp.com', // Your Amplify frontend domain
-  'http://localhost:3000', // Optional for local development
+  'https://main.d38etjdofoghg2.amplifyapp.com', // Your Amplify frontend
+  'http://localhost:3000' // Optional: local dev
 ];
 
 app.use(cors({
@@ -148,12 +146,7 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
-
-// Health check endpoint
-app.get('/', (req, res) => {
-  res.send('Server is working');
-});
+app.use(express.urlencoded({ extended: true }));
 
 // === Routes ===
 import adminRoutes from './routes/admin.js';
@@ -168,45 +161,35 @@ app.use('/api', adminRoutes);
 app.use('/api', instructorRoutes);
 app.use('/api', questionRoutes);
 
-// === Error Handler ===
-app.use((err, req, res, next) => {
-  console.error('Server error:', err.stack);
-  res.status(500).json({ message: 'Internal Server Error', error: err.message });
+// === Health check ===
+app.get('/', (req, res) => {
+  res.send('✅ Server is working');
 });
 
-// === DB Connection ===
-let isConnected = false;
+// === Error Handler ===
+app.use((err, req, res, next) => {
+  console.error('❌ Server error:', err.stack);
+  res.status(500).json({
+    message: 'Internal Server Error',
+    error: err.message
+  });
+});
 
-const connectToDatabase = async () => {
-  if (isConnected) return;
+// === DB + Server Start ===
+const PORT = process.env.PORT || 3000;
 
+const startServer = async () => {
   try {
     await conn();
-    isConnected = true;
     console.log('✅ Database connected');
+
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running at http://localhost:${PORT}`);
+    });
   } catch (error) {
-    console.error('❌ Database connection failed:', error);
-    throw error;
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
   }
 };
 
-// === ✅ Exported handler for Vercel serverless functions ===
-export default async function handler(req, res) {
-  try {
-    const dbTimeout = setTimeout(() => {
-      throw new Error('Database connection timeout');
-    }, 8000);
-
-    await connectToDatabase();
-    clearTimeout(dbTimeout);
-
-    // Pass the request to Express
-    app(req, res);
-  } catch (error) {
-    console.error('Handler error:', error);
-    res.status(500).json({
-      message: 'Internal Server Error',
-      error: error.message,
-    });
-  }
-}
+startServer();
