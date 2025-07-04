@@ -1,49 +1,17 @@
-// import multer from 'multer'
-// import {v4 as uuid} from 'uuid'
+import multer from 'multer';
 
-// const storage = multer.diskStorage({
-//     destination:  (req,file,cb) =>{
-//         cb(null,"uploads/")
-//     },
-//     filename(req,file,cb){
-//         const id = uuid()
+// Memory storage configuration
+const storage = multer.memoryStorage();
 
-//         const extName = file.originalname.split(".").pop();
-//         const fileName = `${id}.${extName}`;
-
-//         cb(null,fileName);
-//     },
-// })
-
-// export const uploadFiles = multer({storage}).single("file");
-
-
-import multer from "multer";
-import { v4 as uuidv4 } from "uuid";
-import path from "path";
-
-// Set up the storage configuration
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, "uploads/"); // Ensure the "uploads" folder exists
-    },
-    filename: (req, file, cb) => {
-        const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
-        cb(null, uniqueName);
-    },
-});
-
-// Define the file filter to allow both image and video files
+// File filter for images and videos
 const fileFilter = (req, file, cb) => {
-    console.log("File received in Multer:", file); // Debugging to check the uploaded file
-    const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "video/mp4"]; // Add more video formats as needed
-
-    if (allowedTypes.includes(file.mimetype)) {
-        cb(null, true); // Accept the file
-    } else {
-        cb(new Error("Only image (.jpg, .jpeg, .png) and video (.mp4) files are allowed!"), false);
-    }
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'video/mp4'];
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only images (.jpg, .jpeg, .png) and videos (.mp4) allowed'), false);
+  }
 };
 
-// Initialize Multer with storage and file filter
-export const uploadFiles = multer({ storage, fileFilter }).single("file"); // Ensure the field name matches the frontend input
+// Export multer middleware
+export const uploadFiles = multer({ storage, fileFilter }).single('file');
