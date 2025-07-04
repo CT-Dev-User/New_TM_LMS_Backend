@@ -100,6 +100,7 @@
 //   }
 // }
 
+
 import { v2 as cloudinary } from 'cloudinary';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -107,32 +108,31 @@ import express from 'express';
 import Razorpay from 'razorpay';
 import { conn } from './database/db.js';
 
-// Load env vars
+// Load env
 dotenv.config();
 
-// Express app
+// Initialize Express app
 const app = express();
 
-// Cloudinary config
+// Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Razorpay config
+// Razorpay
 export const instance = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-// Allowed frontend domains
+// CORS allowed origins
 const allowedOrigins = [
   'https://main.d38etjdofoghg2.amplifyapp.com',
   'http://localhost:3000',
 ];
 
-// CORS setup
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -144,60 +144,44 @@ app.use(cors({
   credentials: true,
 }));
 
-// 👉 Handle preflight requests
-app.options('*', cors());
-
-// Body parsers
-app.use(express.json({ limit: '10mb' }));
+// JSON parsing
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health check
-app.get('/', (req, res) => {
-  res.send('Server running');
-});
-
-// === Routes ===
+// Import Routes
 import adminRoutes from './routes/admin.js';
 import courseRoutes from './routes/course.js';
 import questionRoutes from './routes/CourseQ.js';
 import instructorRoutes from './routes/instructor.js';
 import userRoutes from './routes/user.js';
 
+// Use Routes
 app.use('/api', userRoutes);
 app.use('/api', courseRoutes);
 app.use('/api', adminRoutes);
 app.use('/api', instructorRoutes);
 app.use('/api', questionRoutes);
 
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error('Server error:', err.stack);
-  res.status(500).json({
-    message: 'Internal Server Error',
-    error: err.message,
-  });
+// Health check
+app.get('/', (req, res) => {
+  res.send('API is running...');
 });
 
-// === Server startup ===
-const PORT = process.env.PORT || 4000;
+// Error middleware
+app.use((err, req, res, next) => {
+  console.error('Internal Server Error:', err.message);
+  res.status(500).json({ message: 'Internal Server Error', error: err.message });
+});
 
+// Vercel serverless export
 let isConnected = false;
 
-const start = async () => {
+const handler = async (req, res) => {
   if (!isConnected) {
-    try {
-      await conn();
-      isConnected = true;
-      console.log('✅ Database connected');
-    } catch (err) {
-      console.error('❌ Failed to connect to DB:', err);
-      process.exit(1);
-    }
+    await conn();
+    isConnected = true;
   }
-
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running at http://localhost:${PORT}`);
-  });
+  return app(req, res); // This works with vercel's "@vercel/node"
 };
 
-start();
+export default handler;
