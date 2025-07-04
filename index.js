@@ -81,7 +81,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import Razorpay from 'razorpay';
-import { conn } from '../database/db.js';
+import { conn } from './database/db.js';
 
 // Load environment variables
 dotenv.config();
